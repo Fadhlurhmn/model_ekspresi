@@ -1,0 +1,10 @@
+facenet-pytorch
+torch
+torchvision
+tensorflow
+opencv-python
+uvicorn
+fastapi
+pillow
+numpy
+python-multipart
