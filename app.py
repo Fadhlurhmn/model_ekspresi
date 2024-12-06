@@ -23,11 +23,9 @@ limiter = Limiter(key_func=get_remote_address)
 blacklist = set()
 
 @app.exception_handler(RateLimitExceeded)
-async def rate_limit_handler(request, exc):
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     client_ip = get_remote_address(request)
-    # Log the blocked IP
     logger.warning(f"Rate limit exceeded for IP: {client_ip}")
-    # Add to blacklist
     blacklist.add(client_ip)
     return PlainTextResponse("Too Many Requests. Your IP has been temporarily blocked.", status_code=429)
 
@@ -39,14 +37,8 @@ async def ip_block_middleware(request: Request, call_next):
         return PlainTextResponse("Your IP has been blocked due to suspicious activity.", status_code=403)
     return await call_next(request)
 
-@app.on_event("startup")
-async def startup_event():
-    app.state.limiter = limiter
-
-@app.middleware("http")
-async def rate_limit_middleware(request: Request, call_next):
-    response = await app.state.limiter.middleware(request, call_next)
-    return response
+# Add rate limiting middleware
+app.add_middleware(BaseHTTPMiddleware, dispatch=limiter.middleware)
 
 # Logger configuration
 logging.basicConfig(
@@ -80,7 +72,8 @@ async def health_check():
     return {"status": "OK", "message": "Server is running smoothly"}
 
 # Detect expression and return processed image
-@app.post("/detect-expression/", dependencies=[limiter.limit("10/minute")])
+@app.post("/detect-expression/")
+@limiter.limit("10/minute")
 async def detect_expression(file: UploadFile = File(...)):
     if not file.filename.lower().endswith((".jpg", ".jpeg", ".png")):
         raise HTTPException(status_code=400, detail="Only JPG, JPEG, or PNG files are supported.")
@@ -119,7 +112,8 @@ async def detect_expression(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail="An unexpected error occurred.")
 
 # Detect expression and return labels only
-@app.post("/get-expression-label/", dependencies=[limiter.limit("10/minute")])
+@app.post("/get-expression-label/")
+@limiter.limit("10/minute")
 async def get_expression_label(file: UploadFile = File(...)):
     if not file.filename.lower().endswith((".jpg", ".jpeg", ".png")):
         raise HTTPException(status_code=400, detail="Only JPG, JPEG, or PNG files are supported.")
