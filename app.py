@@ -11,13 +11,13 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import logging
 from fastapi.openapi.utils import get_openapi
-from starlette.middleware.base import BaseHTTPMiddleware
 
 # Initialize FastAPI
 app = FastAPI()
 
 # Rate limiting setup
 limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
 
 # Dynamic blacklist for IPs
 blacklist = set()
@@ -36,9 +36,6 @@ async def ip_block_middleware(request: Request, call_next):
         logger.warning(f"Blocked request from blacklisted IP: {client_ip}")
         return PlainTextResponse("Your IP has been blocked due to suspicious activity.", status_code=403)
     return await call_next(request)
-
-# Add rate limiting middleware
-app.add_middleware(BaseHTTPMiddleware, dispatch=limiter.middleware)
 
 # Logger configuration
 logging.basicConfig(
