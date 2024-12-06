@@ -8,3 +8,5 @@ fastapi
 pillow
 numpy
 python-multipart
+slowapi
+starlette
