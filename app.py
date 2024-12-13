@@ -27,7 +27,7 @@ emotion_labels = ["Angry", "Fear", "Happy", "Neutral", "Sad"]
 @app.on_event("startup")
 async def load_model():
     global model
-    model = tf.keras.models.load_model("model/expression_detection_new.h5")
+    model = tf.keras.models.load_model("model/expression_recognition.h5")
 
 # Inisialisasi MTCNN
 detector = MTCNN(keep_all=True)
