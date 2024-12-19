@@ -138,14 +138,10 @@ async def detect_expression(request: Request, file: UploadFile = File(...)):
 @limiter.limit("10/minute")
 async def get_expression_label(request: Request, file: UploadFile = File(...)):
     """
-    Endpoint untuk mendeteksi ekspresi wajah dan mengembalikan label ekspresi.
-    Returns JSON dengan daftar ekspresi yang terdeteksi.
+    Endpoint untuk mendeteksi ekspresi wajah dan hanya mengembalikan label ekspresi.
     """
     if not file.filename.lower().endswith((".jpg", ".jpeg", ".png")):
-        raise HTTPException(
-            status_code=400,
-            detail="Only JPG, JPEG, or PNG files are supported."
-        )
+        raise HTTPException(status_code=400, detail="Only JPG, JPEG, or PNG files are supported.")
     
     try:
         # Membaca file gambar
@@ -156,15 +152,12 @@ async def get_expression_label(request: Request, file: UploadFile = File(...)):
         # Deteksi wajah menggunakan MTCNN
         boxes, _ = detector.detect(image)
         if boxes is None or len(boxes) == 0:
-            raise HTTPException(
-                status_code=400,
-                detail="No faces detected in the image."
-            )
+            raise HTTPException(status_code=400, detail="No faces detected.")
 
         expression_results = []
 
         # Loop untuk proses klasifikasi
-        for i, box in enumerate(boxes, 1):
+        for box in boxes:
             x1, y1, x2, y2 = map(int, box)
             face = image_np[y1:y2, x1:x2]
             face_gray = cv2.cvtColor(face, cv2.COLOR_RGB2GRAY)
@@ -175,31 +168,15 @@ async def get_expression_label(request: Request, file: UploadFile = File(...)):
             # Prediksi ekspresi
             predictions = model.predict(face_reshaped)
             emotion = emotion_labels[np.argmax(predictions)]
-            confidence = float(np.max(predictions)) * 100
-            
-            expression_results.append({
-                "face_id": i,
-                "emotion": emotion,
-                "confidence": f"{confidence:.1f}%"
-            })
+            expression_results.append(emotion)
 
-        return JSONResponse({
-            "status": "success",
-            "faces_detected": len(expression_results),
-            "results": expression_results
-        })
+        return JSONResponse({"emotions": expression_results}, status_code=200)
 
     except UnidentifiedImageError:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid or corrupted image file."
-        )
+        raise HTTPException(status_code=400, detail="Unsupported image format.")
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"An error occurred while processing the image: {str(e)}"
-        )
-
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")
+	    
 # Error Handlers
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
